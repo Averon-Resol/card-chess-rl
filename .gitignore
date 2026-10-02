@@ -1,0 +1,23 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Pytest
+.pytest_cache/
+
+# Environments
+.env
+.venv
+env/
+venv/
+ENV/
+
+# Checkpoints and logs (for when you train the model)
+checkpoints/
+training_log.json
+
+# IDEs and OS files
+.vscode/
+.idea/
+.DS_Store
