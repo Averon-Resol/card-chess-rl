@@ -51,11 +51,12 @@ def greedy_picker(state: GameState, candidates: list[Card]) -> Card:
     return best_card
 
 def trained_picker(net: torch.nn.Module, device: str = 'cpu'):
-    """Return a card picker function that uses the trained network.
+    """Return a card picker function that uses the trained network (PolicyValueNet or QNet).
     
     Usage: picker = trained_picker(loaded_net)
     Then pass picker as the card_picker argument.
     """
+    net.eval()
     def _pick(state: GameState, candidates: list[Card]) -> Card:
         with torch.no_grad():
             encoded = encode_state(state)
@@ -63,8 +64,9 @@ def trained_picker(net: torch.nn.Module, device: str = 'cpu'):
             cards_t = encoded['cards'].unsqueeze(0).to(device)
             deck_t = encoded['deck'].unsqueeze(0).to(device)
             
-            policy_logits, _ = net(board_t, cards_t, deck_t)
-            action_idx = torch.argmax(policy_logits, dim=1).item()
+            out = net(board_t, cards_t, deck_t)
+            scores = out[0] if isinstance(out, tuple) else out
+            action_idx = torch.argmax(scores, dim=1).item()
             if action_idx >= len(candidates):
                 action_idx = 0
             return candidates[action_idx]

@@ -4,15 +4,26 @@ import chess
 from typing import List, Set, Optional
 
 def _is_safe_move(board: chess.Board, move: chess.Move) -> bool:
-    """Manually test if a move leaves the king in check."""
+    """Manually test if a move is valid and does not leave own king in check."""
     if move in board.legal_moves:
         return True
     
     piece = board.piece_at(move.from_square)
+    if piece is None:
+        return False
     target = board.piece_at(move.to_square)
+    # Never allow capturing the enemy king
+    if target is not None and target.piece_type == chess.KING:
+        return False
+    # Never allow an unpromoted pawn on rank 1 or rank 8
+    if piece.piece_type == chess.PAWN:
+        to_rank = chess.square_rank(move.to_square)
+        if to_rank in (0, 7) and move.promotion is None:
+            return False
     
+    placed_piece = chess.Piece(move.promotion, piece.color) if move.promotion else piece
     board.remove_piece_at(move.from_square)
-    board.set_piece_at(move.to_square, piece)
+    board.set_piece_at(move.to_square, placed_piece)
     
     in_check = board.is_check()
     
@@ -247,12 +258,21 @@ class AllPiecesKingMove(Card):
     description = "All pieces can additionally move 1 square in any direction"
     def modify_legal_moves(self, board: chess.Board, color: chess.Color) -> set[chess.Move]:
         moves = set(board.legal_moves)
+        own_back_rank = 0 if color == chess.WHITE else 7
+        promo_rank = 7 if color == chess.WHITE else 0
         for sq, piece in board.piece_map().items():
             if piece.color == color:
                 for t_sq in _get_king_moves(sq):
                     target = board.piece_at(t_sq)
                     if target is None or target.color != color:
-                        m = chess.Move(sq, t_sq)
+                        promotion = None
+                        if piece.piece_type == chess.PAWN:
+                            t_rank = chess.square_rank(t_sq)
+                            if t_rank == own_back_rank:
+                                continue  # a pawn on its own back rank is an illegal position
+                            if t_rank == promo_rank:
+                                promotion = chess.QUEEN  # reaching the last rank always promotes
+                        m = chess.Move(sq, t_sq, promotion=promotion)
                         if _is_safe_move(board, m):
                             moves.add(m)
         return moves
@@ -263,11 +283,13 @@ class PawnsCanMoveBackward(Card):
     description = "Pawns can retreat 1 square backward"
     def modify_legal_moves(self, board: chess.Board, color: chess.Color) -> set[chess.Move]:
         moves = set(board.legal_moves)
+        own_back_rank = 0 if color == chess.WHITE else 7
         for sq in board.pieces(chess.PAWN, color):
             file, rank = chess.square_file(sq), chess.square_rank(sq)
             dr = -1 if color == chess.WHITE else 1
             r = rank + dr
-            if 0 <= r <= 7:
+            # A pawn may not retreat onto its own back rank (illegal position).
+            if 0 <= r <= 7 and r != own_back_rank:
                 t_sq = chess.square(file, r)
                 target = board.piece_at(t_sq)
                 if target is None or target.color != color:

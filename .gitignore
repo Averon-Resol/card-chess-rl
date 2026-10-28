@@ -13,9 +13,13 @@ env/
 venv/
 ENV/
 
-# Checkpoints and logs (for when you train the model)
+# Per-machine training checkpoints and auto-downloaded Stockfish binaries.
+# NOTE: models/ (final weights) and results/ (scores + json) are NOT ignored on purpose:
+# each member commits them so the GUI/leaderboard can use everyone's results.
 checkpoints/
+engines/
 training_log.json
+results/*_training_log.json
 
 # IDEs and OS files
 .vscode/

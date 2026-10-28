@@ -1,4 +1,4 @@
-# Card-Chess RL — Project Specification
+﻿# Card-Chess RL — Project Specification
 
 A chess variant where, once per round, a coin toss grants one player the choice of
 1-of-3 randomly drawn "rule cards." The chosen card's effect applies to **both**
@@ -41,23 +41,23 @@ described in Module 1.
 | **Module 1** | Round/turn controller (coin toss, draw, apply) | ✅ Done | — | |
 | **Module 1** | Deck management (draw-without-replacement, reshuffle) | ✅ Done | — | |
 | **Module 1** | Game state serialization API | ✅ Done | — | |
-| **Module 1** | GUI (drag-and-drop, Lichess-style) | ⬜ Not Started | — | |
+| **Module 1** | GUI (drag-and-drop, Lichess-style) | ✅ Done | — | Flask + chessboard.js + Stockfish depth 6 |
 | **Module 2** | State encoding (board planes + cards + deck) | ✅ Done | — | 16×8×8 + 3×d_c + 15 |
-| **Module 2** | Policy/Value network (Conv + MLP) | ✅ Done | — | ~3 conv layers, 2-head MLP |
-| **Module 2** | Self-play training loop | ✅ Done | — | PPO with clipped surrogate |
-| **Module 2** | Reward shaping (variable-interval Φ) | ✅ Done | — | γ^Δt adaptation |
-| **Module 2** | Evaluation checkpoint pipeline | ✅ Done | — | vs frozen + random baseline |
-| **Module 3** | Alpha-beta minimax search | ✅ Done | — | Depth-limited, card-aware |
-| **Module 3** | Evaluation function Φ(s) | ✅ Done | — | Material + piece-square + mobility |
+| **Module 2** | Policy/Value & Q networks (Conv + MLP) | ✅ Done | — | `PolicyValueNet` (PPO) + `QNet` (DQN/SARSA) |
+| **Module 2** | 3-Algorithm Depth-6 Training Suite | ✅ Done | Ihsal / Dhruv / Dano | PPO (`train_ppo.py`), Double DQN (`train_dqn.py`), SARSA (`train_sarsa.py`) |
+| **Module 2** | Literature-backed Reward v2 (variable-interval Φ) | ✅ Done | — | Win-prob potential + γ^Δt SMDP shaping + margin adjudication |
+| **Module 2** | Standardized 3-Baseline Evaluation Suite | ✅ Done | — | `eval_suite.py` + `compare_results.py` |
+| **Module 3** | Stockfish Depth-6 + Alpha-beta minimax search | ✅ Done | — | Card-aware `StockfishMover(depth=6)` + Python minimax |
+| **Module 3** | Evaluation function Φ(s) | ✅ Done | — | Material + piece-square + mobility + logistic win-prob mapping |
 | **Module 3** | Experiment runner (win-rate benchmarks) | ✅ Done | — | RL vs random vs greedy vs always-first |
-| **Cross-module** | CardChessEnv (RL environment wrapper) | ✅ Done | — | Gym-like API |
+| **Cross-module** | CardChessEnv (RL environment wrapper) | ✅ Done | — | Gym-like API with Reward v2 and Stockfish depth-6 mover |
 
 ### Known Issues / Blockers
 
 | Issue | Status | Impact |
 |-------|--------|--------|
-| 15 card definitions not yet provided | ✅ Resolved | Implemented 15 custom cards in engine/cards.py |
-| Stockfish integration for benchmarking TBD | 🟡 Low priority | Only needed for post-training comparison |
+| 15 card definitions not yet provided | ✅ Resolved | Implemented 15 custom cards in `engine/cards.py` |
+| Stockfish integration for depth-6 move search | ✅ Resolved | Auto-downloaded in `search/stockfish_engine.py`, card-aware depth-6 search (~4 ms/move) |
 
 ### File Inventory
 
@@ -67,12 +67,65 @@ described in Module 1.
 | `CardChessRL_LitReview.pdf` | Submitted deliverable: Goals 1–8 (background, lit review, gap analysis, research direction) |
 | `CardChessRL_Goals9_14.docx` | Submitted deliverable: Goals 9–14 (RL formulation, diagrams, simulation plan, metrics, novelty, references) |
 | `CardChessRL_Goals9_14.md` | Markdown source for Goals 9–14 (reference copy) |
+| `MidReview_Prep_Guide.md` | Comprehensive mid-review study guide |
+| `train_ppo.py` | **Member 1 (Ihsal):** Standalone script to train & evaluate **PPO** at depth 6 (`results/ppo_results.json`) |
+| `train_dqn.py` | **Member 2 (Dhruv):** Standalone script to train & evaluate **Double DQN** at depth 6 (`results/dqn_results.json`) |
+| `train_sarsa.py` | **Member 3 (Dano):** Standalone script to train & evaluate **SARSA** (on-policy TD control) at depth 6 (`results/sarsa_results.json`) |
+| `compare_results.py` | Read-only leaderboard across PPO, DQN, SARSA; shows which model the app will use |
+| `cardchess_rl/model_selector.py` | Reads scores A (PPO), B (DQN), C (SARSA) from `results/score_<algo>.txt` and picks the max. Set `FORCE_MODEL` there to override manually |
+| `results/` and `models/` | **Committed on purpose.** `results/score_<algo>.txt` (appended accuracy per run), `results/<algo>_results.json`, `models/<algo>.pt` (trained weights) |
 | `cardchess_rl/engine/` | Module 1 core logic (`game.py`, `deck.py`, `cards.py`, `state.py`) |
-| `cardchess_rl/search/` | Module 3 minimax engine (`minimax.py`, `evaluation.py`) |
-| `cardchess_rl/agent/` | Module 2 RL agent (`network.py`, `encoding.py`, `env.py`, `training.py`) |
-| `cardchess_rl/experiments/` | Experiment runner and baselines (`runner.py`, `baselines.py`) |
-| `cardchess_rl/tests/` | Comprehensive pytest suite for all modules |
-| `cardchess_rl/train.py` | Top-level script to launch PPO self-play training |
+| `cardchess_rl/search/` | Module 3 search & eval (`stockfish_engine.py`, `minimax.py`, `evaluation.py`) |
+| `cardchess_rl/agent/` | Module 2 RL agents (`network.py`, `encoding.py`, `env.py`, `training.py`, `dqn_trainer.py`, `sarsa_trainer.py`) |
+| `cardchess_rl/experiments/` | Experiment runner, baselines, and depth-6 evaluation suite (`eval_suite.py`, `runner.py`, `baselines.py`) |
+| `cardchess_rl/gui/` | Flask + chessboard.js interactive web demo (`app.py`, `templates/index.html`) |
+| `cardchess_rl/tests/` | Comprehensive pytest suite (22 tests) for all modules |
+
+---
+
+## ⚠️ REVISION 2: Teacher Feedback After Mid-Review (2026-10-21) — READ THIS FIRST
+
+> Future agents: this section **overrides** anything below that conflicts with it
+> (especially §0 decision #5, §4.4 reward, §4.5 training algorithm).
+
+### What the teacher said
+1. **Reward is too weak.** A plain +1 / 0 / −1 terminal reward is likely detrimental (sparse, long games, most capped games end as a meaningless "draw"). Look at papers on similar problems and redesign the reward.
+2. **Move-search depth 2–3 during training is far too shallow.** The minimax engine plays weak chess, so card effects aren't exploited and the learning signal is noise. Use **depth 6**.
+3. **PPO may not be the right algorithm.** Train **3 algorithms** under identical conditions, compare them, and keep the best one for the final project.
+
+### Agreed plan (decided with Ihsal, 2026-10-21)
+| # | Decision |
+|---|----------|
+| R1 | **Depth 6 via Stockfish.** Our Python minimax measured 0.02 s/move at depth 2, 0.26 s at depth 3 and 1.7 s at depth 4 (~7× per ply), so depth 6 would take ≈80 s/move (≈2.5 h/game), which is infeasible. Stockfish (C++) is used as the **move engine** at depth 6 (~4 ms/move). Card rules are kept: Stockfish searches only the card-legal standard moves at the root. Card-added (non-standard) moves are pushed by us, and each resulting position is scored with Stockfish at depth 5 (= 6 plies total). Stockfish is auto-downloaded on first run. This **replaces §0 decision #5** (Stockfish was previously benchmark-only). |
+| R2 | **Three algorithms, one per team member**, all with the same environment, reward, depth, training budget and evaluation: **PPO → Ihsal (`train_ppo.py`)**, **DQN (Double DQN) → Dhruv (`train_dqn.py`)**, **SARSA → Dano (`train_sarsa.py`)**. |
+| R3 | **"Accuracy" metric = score** = (wins + ½·draws) / games, against the **random, always-first and greedy** card pickers, using the same fixed evaluation seeds for all three algorithms. The best overall score wins and is used in the final project/GUI (`compare_results.py`). |
+| R4 | **New literature-based reward** (details in the "Reward v2" table below). |
+
+### Reward v2 (literature-backed)
+| Component | Formula | Source / motivation |
+|---|---|---|
+| Win-probability potential | Φ(s) = 2·P_win(s) − 1 = tanh(cp · ln10 / 800), where cp = centipawn eval from the agent's side | Suphx (Li et al., 2020) shapes rewards with a predictor of the *final outcome* instead of raw scores. The logistic cp→win-probability map is the standard Elo/Lichess conversion. This keeps Φ in [−1, 1], the same scale as the terminal reward. The old Φ = cp/1000 was unbounded (mate = ±10) and swamped the terminal signal. |
+| SMDP shaping | F = γ^Δt · Φ(s′) − Φ(s), with Φ(terminal) = 0 | Ng, Harada & Russell (1999) potential-based shaping, extended to SMDPs/options with γ^τ (Sutton, Precup & Singh, 1999). Policy-invariant. **Bug fixed:** the old env also added per-opponent-round shaping, which double-counted. |
+| Graded terminal | Checkmate win +1, loss −1. Real draw 0. **Round cap (60 rounds) is adjudicated as r_T = Φ(s_cap)**, not 0. | DouZero (Zha et al., 2021) showed margin-based (ADP) rewards beat pure win/loss (WP) on score efficiency. Capped games otherwise give a fake "draw" signal. Card-drafting RL (Vieira, Chaimowicz & Tavares, 2020) uses sparse ±1 and reports credit-assignment noise, which is the motivation for the dense shaping. |
+| SMDP discount in learning targets | γ^Δt in GAE (PPO) and in the TD targets (DQN, SARSA) | Δt (rounds between agent decisions, geometric with mean 2) is now returned in `info["dt"]`. |
+| Edge-case rule | If a restriction card leaves a side with **no** card-legal move, that side plays a normal legal move instead of skipping | Fixes the turn-order bug (B9 in the mid-review guide). |
+
+### Team workflow (Revision 2)
+1. `git pull`, then run **only your file**: `python train_ppo.py` (Ihsal), `python train_dqn.py` (Dhruv), `python train_sarsa.py` (Dano).
+2. It prints the accuracy table and automatically writes `results/<algo>_results.json`, appends your score to `results/score_<algo>.txt` and saves `models/<algo>.pt`.
+3. `git add results models`, commit, push. Each person touches different files, so there are no merge conflicts.
+4. After everyone has pushed: `git pull`, `python compare_results.py`, then start the GUI. It uses the highest score automatically, or set `FORCE_MODEL` in `cardchess_rl/model_selector.py`.
+
+### Status of Revision 2
+| Item | Status |
+|---|---|
+| README updated with feedback (this section) | ✅ Done |
+| Stockfish move engine + auto-download (`stockfish_engine.py`) | ✅ Done |
+| Reward v2 + env fixes (`env.py`, `cards.py`, `game.py`) | ✅ Done |
+| `train_ppo.py` / `train_dqn.py` / `train_sarsa.py` + shared `eval_suite.py` | ✅ Done |
+| `compare_results.py` + GUI auto-promotion | ✅ Done |
+| Each member runs ONLY their file, then commits `results/` and `models/` (see workflow below) | 🟡 Ready to run |
+| Run `python compare_results.py` to crown the winner for the final demo | 🟡 Ready to run |
 
 ---
 
@@ -328,3 +381,9 @@ shaping, and the final experiment results/plots for the report.
 | 2026-09-28 | Submitted Goals 1–8 (lit review, background, gap analysis) | `CardChessRL_LitReview.pdf` |
 | 2026-09-28 | Added Goals 9–14 (RL formulation, diagrams, simulation plan, evaluation metrics, novelty, references) | `CardChessRL_Goals9_14.docx`, `CardChessRL_Goals9_14.md` |
 | 2026-09-28 | Updated README with project status tracker, file inventory, changelog, known issues | `README_chess.md` |
+| 2026-10-03 | Implemented Modules 1, 2, 3 and Flask + chessboard.js GUI | `cardchess_rl/*` |
+| 2026-10-09 | Added Mid-Review Prep Guide | `MidReview_Prep_Guide.md` |
+| 2026-10-21 | **Revision 2 (Post-Mid-Review Teacher Feedback):** Implemented literature-backed Reward v2 (Suphx logistic win-probability potential + Ng/Sutton SMDP γ^Δt shaping + DouZero margin adjudication at round cap), integrated Stockfish C++ engine at depth 6 (`stockfish_engine.py`, auto-downloaded), added 3 standalone algorithm trainers (`train_ppo.py` for Ihsal, `train_dqn.py` for Dhruv, `train_a2c.py` for Dano), standardized 3-baseline evaluation (`eval_suite.py`), and leaderboard/auto-promotion (`compare_results.py`). | `README_chess.md`, `train_ppo.py`, `train_dqn.py`, `train_a2c.py`, `compare_results.py`, `cardchess_rl/*` |
+| 2026-10-24 | **A2C replaced by SARSA** (Dano): on-policy TD control, no replay or target net, epsilon-greedy 1.0 to 0.05, gamma^dt TD target using the action actually taken next. Added `model_selector.py` (max of per-algorithm score files picks the GUI model, `FORCE_MODEL` override). Training now auto-writes `results/score_<algo>.txt` and committed `models/<algo>.pt`. | `train_sarsa.py`, `sarsa_trainer.py`, `model_selector.py`, `eval_suite.py`, `gui/app.py`, `compare_results.py` |
+
+

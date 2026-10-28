@@ -4,13 +4,45 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../.
 
 from flask import Flask, render_template, request, jsonify
 import chess
+import torch
 
 from cardchess_rl.engine.game import CardChessGame
 from cardchess_rl.engine.cards import Card
+from cardchess_rl.agent.network import PolicyValueNet, QNet
 from cardchess_rl.search.minimax import choose_move
-from cardchess_rl.experiments.baselines import random_picker
+from cardchess_rl.search.stockfish_engine import StockfishMover
+from cardchess_rl.experiments.baselines import greedy_picker, trained_picker
 
 app = Flask(__name__)
+
+
+def _load_best_card_picker():
+    """Use the model chosen by cardchess_rl/model_selector.py; greedy heuristic if none trained yet."""
+    from cardchess_rl.model_selector import best_model, read_scores
+
+    scores = read_scores()
+    print(f"[GUI] Scores  A(PPO)={scores['ppo']}  B(DQN)={scores['dqn']}  C(SARSA)={scores['sarsa']}")
+    choice = best_model()
+    if choice is not None:
+        algo, path = choice
+        try:
+            ckpt = torch.load(path, map_location="cpu")
+            net = PolicyValueNet() if algo == "ppo" else QNet()  # DQN and SARSA both use QNet
+            net.load_state_dict(ckpt["model_state_dict"])
+            print(f"[GUI] Using trained {algo.upper()} card-picker from {path}")
+            return trained_picker(net, device="cpu")
+        except Exception as exc:
+            print(f"[GUI] Could not load {path}: {exc}")
+    print("[GUI] No trained model found -> using Greedy-1Ply heuristic card-picker")
+    return greedy_picker
+
+
+try:
+    _SHARED_MOVER = StockfishMover(depth=6)
+except Exception:
+    _SHARED_MOVER = None
+_CARD_PICKER = _load_best_card_picker()
+
 
 class WebGameController:
     def __init__(self):
@@ -35,8 +67,8 @@ class WebGameController:
             
         elif self.phase == "PICK_CARD":
             if self.picker == self.agent_color:
-                # Agent picks a card
-                card = random_picker(self.game.get_state(), self.candidates)
+                # Agent picks a card using trained RL model (or greedy fallback)
+                card = _CARD_PICKER(self.game.get_state(), self.candidates)
                 self.game.pick_card(card, self.candidates)
                 self.phase = "MOVE"
                 self.step_state()
@@ -53,7 +85,10 @@ class WebGameController:
             if turn == self.agent_color:
                 moves = self.game.get_legal_moves(self.agent_color)
                 if moves:
-                    move = choose_move(self.game.board, moves, depth=3)
+                    if _SHARED_MOVER is not None:
+                        move = _SHARED_MOVER.choose_move(self.game.board, moves)
+                    else:
+                        move = choose_move(self.game.board, moves, depth=3)
                     if move:
                         self.game.make_move(move)
                 self.moves_made_this_round += 1

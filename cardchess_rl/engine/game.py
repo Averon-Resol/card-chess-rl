@@ -31,9 +31,14 @@ class CardChessGame:
         self.candidate_cards = []
     
     def get_legal_moves(self, color: chess.Color) -> List[chess.Move]:
-        """Get legal moves for the given color, modified by active card."""
+        """Get legal moves for the given color, modified by active card.
+        If a restriction card leaves zero legal moves on a non-terminal board,
+        fall back to standard legal moves so turn parity is preserved.
+        """
         if self.active_card:
-            return list(self.active_card.modify_legal_moves(self.board, color))
+            modified = list(self.active_card.modify_legal_moves(self.board, color))
+            if modified:
+                return modified
         return list(self.board.legal_moves)
     
     def make_move(self, move: chess.Move) -> None:
