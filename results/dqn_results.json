@@ -1,0 +1,47 @@
+{
+  "algorithm": "DQN",
+  "member": "Dhruv",
+  "move_depth": 6,
+  "n_games_per_opponent": 200,
+  "max_rounds": 60,
+  "overall_accuracy": 0.48583333333333334,
+  "overall_strict_win_rate": 0.4583333333333333,
+  "matchups": {
+    "Random": {
+      "opponent": "Random",
+      "n_games": 200,
+      "wins": 97,
+      "draws": 14,
+      "losses": 89,
+      "accuracy_score": 0.52,
+      "strict_win_rate": 0.485,
+      "avg_rounds": 51.18,
+      "elapsed_sec": 106.66
+    },
+    "Always-First": {
+      "opponent": "Always-First",
+      "n_games": 200,
+      "wins": 93,
+      "draws": 4,
+      "losses": 103,
+      "accuracy_score": 0.475,
+      "strict_win_rate": 0.465,
+      "avg_rounds": 51.22,
+      "elapsed_sec": 114.83
+    },
+    "Greedy-1Ply": {
+      "opponent": "Greedy-1Ply",
+      "n_games": 200,
+      "wins": 85,
+      "draws": 15,
+      "losses": 100,
+      "accuracy_score": 0.4625,
+      "strict_win_rate": 0.425,
+      "avg_rounds": 51.71,
+      "elapsed_sec": 157.29
+    }
+  },
+  "checkpoint_path": "checkpoints/dqn/best_model.pt",
+  "training_summary": {},
+  "timestamp": "2026-11-01 16:27:49.694389"
+}
